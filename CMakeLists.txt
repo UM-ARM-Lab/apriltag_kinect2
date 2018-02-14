@@ -29,6 +29,8 @@ pkg_check_modules(Yaml REQUIRED yaml-cpp)
 add_message_files(DIRECTORY msg FILES
     AprilTagDetection.msg
     AprilTagDetections.msg
+    AprilKinectDetection.msg
+    AprilKinectDetections.msg
 )
 
 generate_messages(DEPENDENCIES

@@ -27,11 +27,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
-//kinect2
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl_conversions/pcl_conversions.h>
-
-#include "kinect_utilities.hpp"
 
 // origional
 #include <opencv2/highgui.hpp>
@@ -77,7 +72,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/make_shared.hpp>
 
 #include "apriltags.h"
-#include <apriltags/AprilTagDetections.h>
+#include <apriltag_kinect2/AprilTagDetections.h>
+#include <apriltag_kinect2/AprilKinectDetections.h>
 
 
 using namespace std;
@@ -271,6 +267,8 @@ void InfoCallback(const sensor_msgs::CameraInfoConstPtr& camera_info)
 // Callback for image data
 void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
+    std::cout << "Image Callback" << std::endl;
+
     if(!has_camera_info_){
         ROS_WARN("No Camera Info Received Yet");
         return;
@@ -287,7 +285,7 @@ void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
-    
+
     cv::Mat subscribed_gray = subscribed_ptr->image;
     cv::Point2d opticalCenter;
 
@@ -304,8 +302,15 @@ void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
     // Detect AprilTag markers in the image
     TagDetectionArray detections;
     detector_->process(subscribed_gray, opticalCenter, detections);
+
+
+
+
+
+
+    // After detection, send over message
     visualization_msgs::MarkerArray marker_transforms;
-    apriltags::AprilTagDetections apriltag_detections;
+    apriltag_kinect2::AprilTagDetections apriltag_detections;
     apriltag_detections.header.frame_id = msg->header.frame_id;
     apriltag_detections.header.stamp = msg->header.stamp;
 
@@ -341,14 +346,14 @@ void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
         cv::Mat rvec;
         cv::Mat tvec;
         GetMarkerTransformUsingOpenCV(detections[i], pose, rvec, tvec);
-        
+
         // Get this info from earlier code, don't extract it again
         Eigen::Matrix3d R = pose.block<3,3>(0,0);
         Eigen::Quaternion<double> q(R);
-        
+
         double tag_size = GetTagSize(detections[i].id);
         cout << tag_size << " " << detections[i].id << endl;
-        
+
         // Fill in MarkerArray msg
         visualization_msgs::Marker marker_transform;
         marker_transform.header.frame_id = msg->header.frame_id;
@@ -382,15 +387,15 @@ void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
         marker_transform.pose.orientation.y = q.y();
         marker_transform.pose.orientation.z = q.z();
         marker_transform.pose.orientation.w = q.w();
-        
+
         marker_transform.color.r = 1.0;
         marker_transform.color.g = 0.0;
         marker_transform.color.b = 1.0;
         marker_transform.color.a = 1.0;
         marker_transforms.markers.push_back(marker_transform);
-        
+
         // Fill in AprilTag detection.
-        apriltags::AprilTagDetection apriltag_det;
+        apriltag_kinect2::AprilTagDetection apriltag_det;
         apriltag_det.header = marker_transform.header;
         apriltag_det.id = marker_transform.id;
         apriltag_det.tag_size = tag_size;
@@ -453,17 +458,222 @@ void ImageCallback(const sensor_msgs::ImageConstPtr& msg)
     }
 }
 
+
+
+//trying to be non-invasive as possible
+//kinect2
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#include "kinect_utilities.hpp"
+
+
 // Callback for point cloud
-void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &msg)
+void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
 {
-    sensor_msgs::ImagePtr image_msg(new sensor_msgs::Image);
+    std::cout << "PointCloud Callback" << std::endl;
+    //extract pointcloud to pcl format
+    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>());
+    pcl::fromROSMsg(*pc_msg, *cloud);
+
+
+    sensor_msgs::ImagePtr msg(new sensor_msgs::Image);
 
     //Get an OpenCV image from the cloud
-    pcl::toROSMsg (*msg, *image_msg);
-    image_msg->header.stamp = msg->header.stamp;
-    image_msg->header.frame_id = msg->header.frame_id;
+    pcl::toROSMsg (*pc_msg, *msg);
+    msg->header.stamp = pc_msg->header.stamp;
+    msg->header.frame_id = pc_msg->header.frame_id;
 
-    ImageCallback(image_msg);
+    if(!has_camera_info_){
+        ROS_WARN("No Camera Info Received Yet");
+        return;
+    }
+
+
+    // Get the image
+    cv_bridge::CvImagePtr subscribed_ptr;
+    try
+    {
+        subscribed_ptr = cv_bridge::toCvCopy(msg, "mono8");
+    }
+    catch(cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+
+    cv::Mat subscribed_gray = subscribed_ptr->image;
+    cv::Point2d opticalCenter;
+
+    if ((camera_info_.K[2] > 1.0) && (camera_info_.K[5] > 1.0))
+    {
+        // cx,cy from intrinsic matric look reasonable, so we'll use that
+        opticalCenter = cv::Point2d(camera_info_.K[5], camera_info_.K[2]);
+    }
+    else
+    {
+        opticalCenter = cv::Point2d(0.5*subscribed_gray.rows, 0.5*subscribed_gray.cols);
+    }
+
+    // Detect AprilTag markers in the image
+    TagDetectionArray detections;
+    detector_->process(subscribed_gray, opticalCenter, detections);
+
+
+
+    //kinect pose improvement
+//    aprilPoseImprovement(detections, cloud);
+
+
+
+    // After detection, send over message
+    visualization_msgs::MarkerArray marker_transforms;
+    apriltag_kinect2::AprilTagDetections apriltag_detections;
+    apriltag_detections.header.frame_id = msg->header.frame_id;
+    apriltag_detections.header.stamp = msg->header.stamp;
+
+    cv_bridge::CvImagePtr subscribed_color_ptr;
+    if ((viewer_) || (publish_detections_image_))
+    {
+        try
+        {
+            subscribed_color_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+        }
+        catch(cv_bridge::Exception& e)
+        {
+            ROS_ERROR("cv_bridge exception: %s", e.what());
+            return;
+        }
+
+        if (display_marker_overlay_)
+        {
+            // Overlay a black&white marker for each detection
+            subscribed_color_ptr->image = family_->superimposeDetections(subscribed_color_ptr->image, detections);
+        }
+    }
+
+    for(unsigned int i = 0; i < detections.size(); ++i)
+    {
+        // skip bad detections
+        if(!detections[i].good)
+        {
+            continue;
+        }
+
+        Eigen::Matrix4d pose;
+        cv::Mat rvec;
+        cv::Mat tvec;
+        GetMarkerTransformUsingOpenCV(detections[i], pose, rvec, tvec);
+
+        // Get this info from earlier code, don't extract it again
+        Eigen::Matrix3d R = pose.block<3,3>(0,0);
+        Eigen::Quaternion<double> q(R);
+
+        double tag_size = GetTagSize(detections[i].id);
+        cout << tag_size << " " << detections[i].id << endl;
+
+        // Fill in MarkerArray msg
+        visualization_msgs::Marker marker_transform;
+        marker_transform.header.frame_id = msg->header.frame_id;
+        marker_transform.header.stamp = msg->header.stamp;
+
+        // Only publish marker for 0.5 seconds after it
+        // was last seen
+        marker_transform.lifetime = ros::Duration(1.0);
+
+        stringstream convert;
+        convert << "tag" << detections[i].id;
+        marker_transform.ns = convert.str().c_str();
+        marker_transform.id = detections[i].id;
+        if(display_type_ == "ARROW"){
+            marker_transform.type = visualization_msgs::Marker::ARROW;
+            marker_transform.scale.x = tag_size; // arrow length
+            marker_transform.scale.y = tag_size/10.0; // diameter
+            marker_transform.scale.z = tag_size/10.0; // diameter
+        }
+        else if(display_type_ == "CUBE"){
+            marker_transform.type = visualization_msgs::Marker::CUBE;
+            marker_transform.scale.x = tag_size;
+            marker_transform.scale.y = tag_size;
+            marker_transform.scale.z = marker_thickness_;
+        }
+        marker_transform.action = visualization_msgs::Marker::ADD;
+        marker_transform.pose.position.x = pose(0,3);
+        marker_transform.pose.position.y = pose(1,3);
+        marker_transform.pose.position.z = pose(2,3);
+        marker_transform.pose.orientation.x = q.x();
+        marker_transform.pose.orientation.y = q.y();
+        marker_transform.pose.orientation.z = q.z();
+        marker_transform.pose.orientation.w = q.w();
+
+        marker_transform.color.r = 1.0;
+        marker_transform.color.g = 0.0;
+        marker_transform.color.b = 1.0;
+        marker_transform.color.a = 1.0;
+        marker_transforms.markers.push_back(marker_transform);
+
+        // Fill in AprilTag detection.
+        apriltag_kinect2::AprilTagDetection apriltag_det;
+        apriltag_det.header = marker_transform.header;
+        apriltag_det.id = marker_transform.id;
+        apriltag_det.tag_size = tag_size;
+        apriltag_det.pose = marker_transform.pose;
+        const TagDetection &det = detections[i];
+        for(uint pt_i = 0; pt_i < 4; ++pt_i)
+        {
+            geometry_msgs::Point32 img_pt;
+            img_pt.x = det.p[pt_i].x;
+            img_pt.y = det.p[pt_i].y;
+            img_pt.z = 1;
+            apriltag_det.corners2d[pt_i] = img_pt;
+        }
+        apriltag_detections.detections.push_back(apriltag_det);
+
+        if ((viewer_) || (publish_detections_image_))
+        {
+            if (display_marker_outline_)
+            {
+                cv::Scalar outline_color(0, 0, 255); // blue (BGR ordering)
+                DrawMarkerOutline(detections[i], outline_color, subscribed_color_ptr->image);
+            }
+
+            if (display_marker_id_)
+            {
+                cv::Scalar text_color(255, 255, 0); // light-blue (BGR ordering)
+                DrawMarkerID(detections[i], text_color, subscribed_color_ptr->image);
+            }
+
+            if (display_marker_edges_)
+            {
+                DrawMarkerEdges(detections[i], subscribed_color_ptr->image);
+            }
+
+            if (display_marker_axes_)
+            {
+                cv::Matx33f intrinsics(camera_info_.K[0], 0, camera_info_.K[2],
+                                       0, camera_info_.K[4], camera_info_.K[5],
+                                       0, 0, 1);
+                cv::Vec4f distortion_coeff(camera_info_.D[0], camera_info_.D[1],
+                                           camera_info_.D[2], camera_info_.D[3]);
+                double axis_length = tag_size;
+                const bool draw_arrow_heads = true;
+                DrawMarkerAxes(intrinsics, distortion_coeff, rvec, tvec, axis_length,
+                               draw_arrow_heads, subscribed_color_ptr->image);
+            }
+        }
+    }
+    marker_publisher_.publish(marker_transforms);
+    apriltag_publisher_.publish(apriltag_detections);
+
+    if(publish_detections_image_)
+    {
+        image_publisher_.publish(subscribed_color_ptr->toImageMsg());
+    }
+
+    if(viewer_)
+    {
+        cv::imshow("AprilTags", subscribed_color_ptr->image);
+    }
 }
 
 // Null callback
@@ -487,12 +697,17 @@ void ConnectCallback(const ros::SingleSubscriberPublisher& info)
                                 "image_transport"));
 
         image_subscriber = (*image_).subscribe(
-                /*DEFAULT_IMAGE_TOPIC, 1, /*&ImageCallback*/
-                "/kinect2_victor_head/hd/image_color/",
+                DEFAULT_IMAGE_TOPIC,
                 1,
-                &nullCallback,
-                image_transport_hint);
-        cloud_subscriber = (*node_).subscribe(DEFAULT_IMAGE_TOPIC, 1, &getPointCloudCallback);
+                &ImageCallback,
+                image_transport_hint
+        );
+//        image_subscriber = (*image_).subscribe(
+//                "/kinect2_victor_head/hd/image_color/",
+//                1,
+//                &nullCallback,
+//                image_transport_hint);
+//        cloud_subscriber = (*node_).subscribe(DEFAULT_IMAGE_TOPIC, 1, &getPointCloudCallback);
         info_subscriber = (*node_).subscribe(
                 DEFAULT_CAMERA_INFO_TOPIC, 10, &InfoCallback);
         running_ = true;
@@ -568,7 +783,7 @@ void SetupPublisher()
     marker_publisher_ = node_->advertise<visualization_msgs::MarkerArray>(
             DEFAULT_MARKER_TOPIC, 1, connect_callback,
             disconnect_callback);
-    apriltag_publisher_ = node_->advertise<apriltags::AprilTagDetections>(
+    apriltag_publisher_ = node_->advertise<apriltag_kinect2::AprilTagDetections>(
             DEFAULT_DETECTIONS_TOPIC, 1, connect_callback, disconnect_callback);
 
     if(publish_detections_image_)
