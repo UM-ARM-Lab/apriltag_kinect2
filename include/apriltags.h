@@ -16,9 +16,13 @@ ros::NodeHandlePtr node_;
 boost::shared_ptr<image_transport::ImageTransport> image_;
 sensor_msgs::CameraInfo camera_info_;
 
+#include <tf2_ros/transform_broadcaster.h>
+boost::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster_;
+
 ros::Publisher marker_publisher_;
 ros::Publisher apriltag_publisher_;
 image_transport::Publisher image_publisher_;
+
 ros::Subscriber info_subscriber;
 image_transport::Subscriber image_subscriber;
 ros::Subscriber cloud_subscriber;

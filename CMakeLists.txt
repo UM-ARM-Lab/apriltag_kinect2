@@ -15,6 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   pcl_ros
   pcl_conversions
+  tf2
+  tf2_ros
 )
 find_package(OpenCV REQUIRED)
 find_package(Eigen REQUIRED)
@@ -49,6 +51,8 @@ catkin_package(
                  geometry_msgs
                  pcl_ros
                  pcl_conversions
+                 tf2
+                 tf2_ros
 )
 
 # CGAL requires that -frounding-math be set.
