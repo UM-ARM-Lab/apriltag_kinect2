@@ -1,3 +1,13 @@
+apriltags_kinect2
+=========
+Fusion of
+
+apriltags https://github.com/mit212/apriltags-cpp
+
+and
+
+ar_track https://github.com/ros-perception/ar_track_alvar
+
 apriltags
 =========
 

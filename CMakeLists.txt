@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(apriltag_kinect2)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -flto -O3 -g -Wall -Wextra -Wpedantic -Wconversion")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -flto -O3 -g -Wall -Wextra -Wpedantic -Wconversion")
 
 # Set up the ROS Catkin package settings.
 find_package(catkin REQUIRED COMPONENTS
@@ -31,8 +31,6 @@ include(FindPkgConfig)
 pkg_check_modules(Yaml REQUIRED yaml-cpp)
 
 add_message_files(DIRECTORY msg FILES
-    AprilTagDetection.msg
-    AprilTagDetections.msg
     AprilKinectDetection.msg
     AprilKinectDetections.msg
 )
@@ -69,7 +67,7 @@ include_directories(
     ${apriltagscpp_INCLUDE_DIR}/apriltagscpp
 )
 
-add_executable(apriltag_kinect2 src/apriltags.cpp src/kinect_utilities.hpp)
+add_executable(apriltag_kinect2 src/apriltags_kinect2.cpp src/kinect_utilities.hpp)
 target_link_libraries(apriltag_kinect2 ${catkin_LIBRARIES}
                                 ${Eigen_LIBRARIES}
                                 ${OpenCV_LIBRARIES}
