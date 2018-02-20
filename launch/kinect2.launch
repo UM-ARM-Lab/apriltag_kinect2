@@ -7,11 +7,13 @@
     <param name="~default_tag_size" value="0.035" />
 
     <param name="~viewer" value="false" />
-    <param name="~publish_detections_image" value="false" />
-    <param name="~display_marker_overlay" value="false" />
-    <param name="~display_marker_outline" value="false" />
-    <param name="~display_marker_edges" value="false" />
-    <param name="~display_marker_axes" value="false" />
+    <param name="~publish_detections_image" value="true" />
+    <param name="~display_marker_overlay" value="true" />
+    <param name="~display_marker_outline" value="true" />
+    <param name="~display_marker_edges" value="true" />
+
+    <param name="~broacast_tf" value="false" />
+    <param name="~tf_marker_id" value="6" />
 
     <param name="~display_type" value="CUBE" />
     <param name="~marker_thickness" value="0.02" />

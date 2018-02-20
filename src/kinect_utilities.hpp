@@ -1,4 +1,5 @@
 #include <opencv/cv.h>
+#include "opencv2/imgproc.hpp"
 #include <Eigen/Core>
 
 #include <pcl/point_cloud.h>
@@ -12,19 +13,91 @@
 #include "AprilTypes.h"
 
 #include <geometry_msgs/Pose.h>
+//#include <omp.h>
 
-using namespace pcl;
+double GetTagSize(int tag_id)
+{
+    boost::unordered_map<size_t, double>::iterator tag_sizes_it =
+            tag_sizes_.find(tag_id);
+    if(tag_sizes_it != tag_sizes_.end()) {
+        return tag_sizes_it->second;
+    } else {
+        return default_tag_size_;
+    }
+}
+
+void GetMarkerTransformUsingOpenCV(const TagDetection& detection, Eigen::Matrix4d& transform, cv::Mat& rvec, cv::Mat& tvec)
+{
+    // Check if fx,fy or cx,cy are not set
+    if ((camera_info_.K[0] == 0.0) || (camera_info_.K[4] == 0.0) || (camera_info_.K[2] == 0.0) || (camera_info_.K[5] == 0.0))
+    {
+        ROS_WARN("Warning: Camera intrinsic matrix K is not set, can't recover 3D pose");
+    }
+
+    double tag_size = GetTagSize(detection.id);
+
+    std::vector<cv::Point3f> object_pts;
+    std::vector<cv::Point2f> image_pts;
+    double tag_radius = tag_size/2.;
+
+    object_pts.push_back(cv::Point3f(-tag_radius, -tag_radius, 0));
+    object_pts.push_back(cv::Point3f( tag_radius, -tag_radius, 0));
+    object_pts.push_back(cv::Point3f( tag_radius,  tag_radius, 0));
+    object_pts.push_back(cv::Point3f(-tag_radius,  tag_radius, 0));
+
+    image_pts.push_back(detection.p[0]);
+    image_pts.push_back(detection.p[1]);
+    image_pts.push_back(detection.p[2]);
+    image_pts.push_back(detection.p[3]);
+
+    cv::Matx33f intrinsics(camera_info_.K[0], 0, camera_info_.K[2],
+                           0, camera_info_.K[4], camera_info_.K[5],
+                           0, 0, 1);
+
+    cv::Vec4f distortion_coeff(camera_info_.D[0], camera_info_.D[1], camera_info_.D[2], camera_info_.D[3]);
+
+    // Estimate 3D pose of tag
+    // Methods:
+    //   CV_ITERATIVE
+    //     Iterative method based on Levenberg-Marquardt optimization.
+    //     Finds the pose that minimizes reprojection error, being the sum of squared distances
+    //     between the observed projections (image_points) and the projected points (object_pts).
+    //   CV_P3P
+    //     Based on: Gao et al, "Complete Solution Classification for the Perspective-Three-Point Problem"
+    //     Requires exactly four object and image points.
+    //   CV_EPNP
+    //     Moreno-Noguer, Lepetit & Fua, "EPnP: Efficient Perspective-n-Point Camera Pose Estimation"
+    int method = CV_ITERATIVE;
+    bool use_extrinsic_guess = false; // only used for ITERATIVE method
+    cv::solvePnP(object_pts, image_pts, intrinsics, distortion_coeff, rvec, tvec, use_extrinsic_guess, method);
+
+    cv::Matx33d r;
+    cv::Rodrigues(rvec, r);
+    Eigen::Matrix3d rot;
+    rot << r(0,0), r(0,1), r(0,2),
+            r(1,0), r(1,1), r(1,2),
+            r(2,0), r(2,1), r(2,2);
+
+    Eigen::Matrix4d T;
+    T.topLeftCorner(3,3) = rot;
+    T.col(3).head(3) <<
+                     tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2);
+    T.row(3) << 0,0,0,1;
+
+    transform = T;
+}
+
 
 class KinectPoseImprovement{
 private:
     size_t m_num_samples;//recommended 9
-    PointCloud<PointXYZRGB>::Ptr m_cloud;
+    pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr m_cloud;
     at::Mat m_tag_space_samples;// 3 by n matrix stores n points in each row
 
 public:
     KinectPoseImprovement(
             size_t num_tag_samples,
-            PointCloud<PointXYZRGB>::Ptr input_cloud
+            pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr input_cloud
     ):
             m_num_samples(num_tag_samples),
             m_cloud(input_cloud)
@@ -53,20 +126,16 @@ public:
     }
 
     int localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
-        std::cout << "localize started" << std::endl;
-
         // sample(segment) a tag corresponding to this detection.
-        PointCloud<PointXYZRGB>::Ptr tag_sample_cloud = sample_cloud(detection);
-        std::cout << "finishied sample cloud" << std::endl;
-        PointCloud<PointXYZRGB>::Ptr corners_3D = extract_corners(detection);
-        std::cout << "finished extract corners" << std::endl;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr tag_sample_cloud = sample_cloud(detection);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr corners_3D = extract_corners(detection);
 
         //fit plane on sampled cloud
         pcl::PointIndices::Ptr inlier_idxs=boost::make_shared<pcl::PointIndices>();
         pcl::ModelCoefficients coeffs;
-        PointCloud<PointXYZRGB>::Ptr inliers(new PointCloud<PointXYZRGB>());
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr inliers(new pcl::PointCloud<pcl::PointXYZRGB>());
 
-        pcl::SACSegmentation<PointXYZRGB> seg;
+        pcl::SACSegmentation<pcl::PointXYZRGB> seg;
         seg.setOptimizeCoefficients(true);
         seg.setModelType(pcl::SACMODEL_PLANE);
         seg.setMethodType(pcl::SAC_RANSAC);
@@ -75,37 +144,24 @@ public:
         seg.setInputCloud(tag_sample_cloud);
         seg.segment(*inlier_idxs, coeffs);
 
-        pcl::ExtractIndices<PointXYZRGB> extracter;
+        pcl::ExtractIndices<pcl::PointXYZRGB> extracter;
         extracter.setInputCloud(tag_sample_cloud);
         extracter.setIndices(inlier_idxs);
         extracter.setNegative(false);
         extracter.filter(*inliers);
 
-        std::cout << "finished RANSAC" << std::endl;
-
         //set center as the mean of inliers
         out_pose.position = centroid(*inliers);
-
-        std::cout << "finished centeroid" << std::endl;
 
         //get orientation
         Eigen::Matrix3d R;
         extractFrame(coeffs, *corners_3D, R);
         Eigen::Quaternion<double> q(R);
 
-        std::cout << "finished extractFrame" << std::endl;
-
         out_pose.orientation.x = q.x();
         out_pose.orientation.y = q.y();
         out_pose.orientation.z = q.z();
         out_pose.orientation.w = q.w();
-
-
-        //debug
-//        size_t i = 8;
-//        out_pose.position.x = tag_sample_cloud->points[i].x;
-//        out_pose.position.y = tag_sample_cloud->points[i].y;
-//        out_pose.position.z = tag_sample_cloud->points[i].z;
 
         return 0;
     }
@@ -124,8 +180,8 @@ private:
         }
     }
 
-    PointCloud<PointXYZRGB>::Ptr sample_cloud(TagDetection& detection){
-        PointCloud<PointXYZRGB>::Ptr out_cloud(new PointCloud<PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sample_cloud(TagDetection& detection){
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
 
         // calcuate points in image coordinate.
         at::Mat img_idx_mat = detection.homography * m_tag_space_samples;
@@ -135,7 +191,7 @@ private:
             x = size_t(img_idx_mat[0][i]/img_idx_mat[2][i] + detection.hxy.x);
             y = size_t(img_idx_mat[1][i]/img_idx_mat[2][i] + detection.hxy.y);
 
-            const PointXYZRGB& pt = (*m_cloud)(x, y);
+            const pcl::PointXYZRGB& pt = (*m_cloud)(x, y);
 
             //check if pt is NaN
             if (std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z)){
@@ -147,17 +203,17 @@ private:
         return out_cloud;
     }
 
-    PointCloud<PointXYZRGB>::Ptr extract_corners(TagDetection& detection){
-        PointCloud<PointXYZRGB>::Ptr out_cloud(new PointCloud<PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extract_corners(TagDetection& detection){
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         for(size_t i = 0; i < 4; i++){
             out_cloud->points.push_back((*m_cloud)(detection.p[i].x, detection.p[i].y));
-            std::cout << i << std::endl;
         }
         return out_cloud;
     }
 
-    geometry_msgs::Point centroid (const PointCloud<PointXYZRGB>& points)
+    geometry_msgs::Point centroid (const pcl::PointCloud<pcl::PointXYZRGB>& points)
     {
+        // find the mean of all point coordinate.
         geometry_msgs::Point sum;
         sum.x = 0;
         sum.y = 0;
@@ -178,7 +234,7 @@ private:
         return center;
     }
 
-    Eigen::Vector3d project(const PointXYZRGB& p, const double a, const double b,
+    Eigen::Vector3d project(const pcl::PointXYZRGB& p, const double a, const double b,
                          const double c, const double d)
     {
         const double t = a*p.x + b*p.y + c*p.z + d;
@@ -202,7 +258,7 @@ private:
     }
 
     int extractFrame (const pcl::ModelCoefficients& coeffs,
-                      PointCloud<PointXYZRGB>& corners,
+                      pcl::PointCloud<pcl::PointXYZRGB>& corners,
                       Eigen::Matrix3d &retmat){
         double a=0, b=0, c=0, d=0;
         if(getCoeffs(coeffs, a, b, c, d) < 0){
@@ -221,11 +277,6 @@ private:
         m << v[0], v[1], v[2],
              w[0], w[1], w[2],
              n[0], n[1], n[2];
-
-//        m << v[0], v[1], v[2],
-//                w[0], w[1], w[2],
-//                n[0], n[1], n[2];
-
 
         retmat = m.inverse();
 
