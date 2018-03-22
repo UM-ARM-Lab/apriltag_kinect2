@@ -61,10 +61,13 @@ include_directories(
     ${Eigen_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${Yaml_INCLUDE_DIRS}
-    ${apriltagscpp_INCLUDE_DIR}/apriltagscpp
+    ${apriltagscpp_INCLUDE_DIR}
 )
 
-add_executable(apriltag_kinect2 src/apriltags_kinect2.cpp src/kinect_utilities.hpp)
+add_executable(apriltag_kinect2
+    src/apriltags_kinect2.cpp
+    include/${PROJECT_NAME}/kinect_utilities.hpp
+    include/${PROJECT_NAME}/apriltags.h)
 target_link_libraries(apriltag_kinect2 ${catkin_LIBRARIES}
                                 ${Eigen_LIBRARIES}
                                 ${OpenCV_LIBRARIES}

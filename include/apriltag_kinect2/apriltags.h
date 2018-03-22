@@ -1,3 +1,18 @@
+#include <string>
+#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
+
+#include <Eigen/Core>
+
+#include <apriltagscpp/TagDetector.h>
+#include <apriltagscpp/TagDetection.h>
+#include <apriltagscpp/TagFamily.h>
+
+#include <ros/ros.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/Image.h>
+
 const double SMALL_TAG_SIZE = 0.0358968;
 const double MED_TAG_SIZE = 0.06096;
 const double PAGE_TAG_SIZE = 0.165;
@@ -16,7 +31,6 @@ ros::NodeHandlePtr node_;
 boost::shared_ptr<image_transport::ImageTransport> image_;
 sensor_msgs::CameraInfo camera_info_;
 
-#include <tf2_ros/transform_broadcaster.h>
 boost::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster_;
 
 ros::Publisher marker_publisher_;

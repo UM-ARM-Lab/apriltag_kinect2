@@ -28,51 +28,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
 
-// origional
-#include <opencv2/highgui.hpp>
-#include <opencv2/calib3d.hpp>
+#include "apriltag_kinect2/apriltags.h"
+#include "apriltag_kinect2/kinect_utilities.hpp"
+#include "apriltag_kinect2/AprilKinectDetections.h"
 
-#include <ros/ros.h>
-#include <ros/forwards.h>
-#include <ros/single_subscriber_publisher.h>
-#include <sensor_msgs/Image.h>
-#include <image_transport/image_transport.h>
-#include <visualization_msgs/Marker.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <cv_bridge/cv_bridge.h>
-
-#include "TagDetector.h"
-#include "TagDetection.h"
-#include "TagFamily.h"
-
-
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-
-#include <visualization_msgs/MarkerArray.h>
-#include "yaml-cpp/yaml.h"
-#include <sstream>
-#include <fstream>
-
-#include <boost/unordered_set.hpp>
-#include <boost/unordered_map.hpp>
-#include <boost/make_shared.hpp>
-
-#include "apriltags.h"
-
-// apriltags_kinect2
-#include <apriltag_kinect2/AprilKinectDetections.h>
-#include <pcl_ros/point_cloud.h>
-
-#include <tf2_ros/transform_broadcaster.h>
-#include <geometry_msgs/TransformStamped.h>
-#include "kinect_utilities.hpp"
-
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <iostream>
 #include <chrono>
+
+#include <opencv/cv.h>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/highgui.hpp>
+
+#include <cv_bridge/cv_bridge.h>
+#include <visualization_msgs/MarkerArray.h>
 
 
 using namespace std;

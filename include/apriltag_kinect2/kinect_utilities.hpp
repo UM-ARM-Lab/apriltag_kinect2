@@ -1,7 +1,11 @@
-#include <opencv/cv.h>
-#include "opencv2/imgproc.hpp"
+//#include <opencv/cv.h>
+//#include <opencv2/imgproc.hpp>
+//#include <opencv2/calib3d.hpp>
+
 #include <Eigen/Core>
 
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/PointIndices.h>
@@ -9,11 +13,11 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
-#include "TagDetection.h"
-#include "AprilTypes.h"
+#include <apriltagscpp/TagDetection.h>
+#include <apriltagscpp/AprilTypes.h>
 
 #include <geometry_msgs/Pose.h>
-//#include <omp.h>
+
 
 double GetTagSize(int tag_id)
 {
@@ -26,6 +30,7 @@ double GetTagSize(int tag_id)
     }
 }
 
+/*
 void GetMarkerTransformUsingOpenCV(const TagDetection& detection, Eigen::Matrix4d& transform, cv::Mat& rvec, cv::Mat& tvec)
 {
     // Check if fx,fy or cx,cy are not set
@@ -86,7 +91,7 @@ void GetMarkerTransformUsingOpenCV(const TagDetection& detection, Eigen::Matrix4
 
     transform = T;
 }
-
+*/
 
 class KinectPoseImprovement{
 private:
