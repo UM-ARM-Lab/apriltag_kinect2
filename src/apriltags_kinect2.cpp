@@ -341,7 +341,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         marker_transform.action = visualization_msgs::Marker::ADD;
         improvement_obj.localize(detections[i], marker_transform.pose);
 
-        if(broacast_tf_){
+        if(broadcast_tf_){
             if(detections[i].id == tf_marker_id_){
                 broadcast_pose(marker_transform.pose);
             }
@@ -477,7 +477,7 @@ void GetParameterValues()
     node_->param("display_marker_edges", display_marker_edges_, false);
     node_->param("display_marker_axes", display_marker_axes_, false);
 
-    node_->param("broacast_tf", broacast_tf_, false);
+    node_->param("broadcast_tf", broadcast_tf_, false);
     node_->param("tf_marker_id", tf_marker_id_, 0);
 
     ROS_INFO("Tag Family: %s", tag_family_name_.c_str());

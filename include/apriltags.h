@@ -50,7 +50,7 @@ bool display_marker_id_;
 bool display_marker_edges_;
 bool display_marker_axes_;
 
-bool broacast_tf_;
+bool broadcast_tf_;
 int tf_marker_id_;
 
 void GetMarkerTransformUsingOpenCV(const TagDetection& detection, Eigen::Matrix4d& transform, cv::Mat& rvec, cv::Mat& tvec);
