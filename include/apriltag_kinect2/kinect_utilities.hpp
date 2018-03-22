@@ -111,7 +111,7 @@ public:
     }
 
 
-    int localize_2d(TagDetection& detection, geometry_msgs::Pose& out_pose){
+    void localize_2d(TagDetection& detection, geometry_msgs::Pose& out_pose){
         Eigen::Matrix4d pose;
         cv::Mat rvec;
         cv::Mat tvec;
@@ -130,7 +130,7 @@ public:
         out_pose.orientation.w = q.w();
     }
 
-    int localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
+    void localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
         // sample(segment) a tag corresponding to this detection.
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr tag_sample_cloud = sample_cloud(detection);
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr corners_3D = extract_corners(detection);
@@ -162,13 +162,12 @@ public:
         Eigen::Matrix3d R;
         extractFrame(coeffs, *corners_3D, R);
         Eigen::Quaternion<double> q(R);
+        q.normalize();
 
         out_pose.orientation.x = q.x();
         out_pose.orientation.y = q.y();
         out_pose.orientation.z = q.z();
         out_pose.orientation.w = q.w();
-
-        return 0;
     }
 
 private:

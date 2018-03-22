@@ -237,7 +237,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
 
 
     // After detection, send over message
-    visualization_msgs::MarkerArray marker_transforms;
+    visualization_msgs::MarkerArray marker_array;
     apriltag_kinect2::AprilKinectDetections aprilkinect_detections;
     aprilkinect_detections.header.frame_id = ros_image_msg->header.frame_id;
     aprilkinect_detections.header.stamp = ros_image_msg->header.stamp;
@@ -262,7 +262,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         }
     }
 
-    for(unsigned int i = 0; i < detections.size(); ++i)
+    for(size_t i = 0; i < detections.size(); ++i)
     {
         // skip bad detections
         if(!detections[i].good)
@@ -282,36 +282,40 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         double tag_size = GetTagSize(detections[i].id);
 
         // Fill in MarkerArray msg
-        visualization_msgs::Marker marker_transform;
-        marker_transform.header.frame_id = ros_image_msg->header.frame_id;
-        marker_transform.header.stamp = ros_image_msg->header.stamp;
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = ros_image_msg->header.frame_id;
+        marker.header.stamp = ros_image_msg->header.stamp;
 
         // Only publish marker for 0.5 seconds after it
         // was last seen
-        marker_transform.lifetime = ros::Duration(1.0);
+        marker.lifetime = ros::Duration(1.0);
 
         stringstream convert;
         convert << "tag" << detections[i].id;
-        marker_transform.ns = convert.str().c_str();
-        marker_transform.id = detections[i].id;
-        if(display_type_ == "ARROW"){
-            marker_transform.type = visualization_msgs::Marker::ARROW;
-            marker_transform.scale.x = tag_size; // arrow length
-            marker_transform.scale.y = tag_size/10.0; // diameter
-            marker_transform.scale.z = tag_size/10.0; // diameter
+        marker.ns = convert.str().c_str();
+        marker.id = detections[i].id;
+        if(display_type_ == "ARROW")
+        {
+            marker.type = visualization_msgs::Marker::ARROW;
+            marker.scale.x = tag_size; // arrow length
+            marker.scale.y = tag_size/10.0; // diameter
+            marker.scale.z = tag_size/10.0; // diameter
         }
-        else if(display_type_ == "CUBE"){
-            marker_transform.type = visualization_msgs::Marker::CUBE;
-            marker_transform.scale.x = tag_size;
-            marker_transform.scale.y = tag_size;
-            marker_transform.scale.z = marker_thickness_;
+        else if(display_type_ == "CUBE")
+        {
+            marker.type = visualization_msgs::Marker::CUBE;
+            marker.scale.x = tag_size;
+            marker.scale.y = tag_size;
+            marker.scale.z = marker_thickness_;
         }
-        marker_transform.action = visualization_msgs::Marker::ADD;
-        improvement_obj.localize(detections[i], marker_transform.pose);
+        marker.action = visualization_msgs::Marker::ADD;
+        improvement_obj.localize(detections[i], marker.pose);
 
-        if(broadcast_tf_){
-            if(detections[i].id == tf_marker_id_){
-                broadcast_pose(marker_transform.pose);
+        if(broadcast_tf_)
+        {
+            if(detections[i].id == tf_marker_id_)
+            {
+                broadcast_pose(marker.pose);
             }
         }
 //        marker_transform.pose.position.x = pose(0,3);
@@ -322,30 +326,22 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
 //        marker_transform.pose.orientation.z = q.z();
 //        marker_transform.pose.orientation.w = q.w();
 
-        marker_transform.color.r = 1.0;
-        marker_transform.color.g = 0.0;
-        marker_transform.color.b = 1.0;
-        marker_transform.color.a = 1.0;
-        marker_transforms.markers.push_back(marker_transform);
+        marker.color.r = 1.0f;
+        marker.color.g = 0.0f;
+        marker.color.b = 1.0f;
+        marker.color.a = 1.0f;
+        marker_array.markers.push_back(marker);
 
         const TagDetection &det = detections[i];
 
         // Fill in AprilTag detection.
         apriltag_kinect2::AprilKinectDetection aprilkinect_det;
-        aprilkinect_det.header = marker_transform.header;
-        aprilkinect_det.id = marker_transform.id;
+        aprilkinect_det.header = marker.header;
+        aprilkinect_det.id = marker.id;
         aprilkinect_det.tag_size = tag_size;
         aprilkinect_det.hammingDistance = det.hammingDistance;
-        aprilkinect_det.pose = marker_transform.pose;
-//        const TagDetection &det = detections[i];
-//        for(uint pt_i = 0; pt_i < 4; ++pt_i)
-//        {
-//            geometry_msgs::Point32 img_pt;
-//            img_pt.x = det.p[pt_i].x;
-//            img_pt.y = det.p[pt_i].y;
-//            img_pt.z = 1;
-//            aprilkinect_det.corners2d[pt_i] = img_pt;
-//        }
+        aprilkinect_det.pose = marker.pose;
+
         aprilkinect_detections.detections.push_back(aprilkinect_det);
 
         if ((viewer_) || (publish_detections_image_))
@@ -370,7 +366,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         }
     }
 
-    marker_publisher_.publish(marker_transforms);
+    marker_publisher_.publish(marker_array);
     apriltag_publisher_.publish(aprilkinect_detections);
 
     if(publish_detections_image_)
