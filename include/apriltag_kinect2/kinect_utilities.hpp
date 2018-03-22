@@ -128,8 +128,6 @@ public:
         out_pose.orientation.y = q.y();
         out_pose.orientation.z = q.z();
         out_pose.orientation.w = q.w();
-
-        return 0;
     }
 
     void localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
