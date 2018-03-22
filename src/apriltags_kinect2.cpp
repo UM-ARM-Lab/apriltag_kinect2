@@ -420,7 +420,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
     auto dur = end - begin;
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur).count();
     ROS_DEBUG("aprilTags_kinect2 Callback Duration: %d milliseconds.", int(ms));
-    std::cout << "Callback Duration: " << ms << "milliseconds \n";
+    std::cout << "Callback Duration: " << ms << " milliseconds \n";
 }
 
 
