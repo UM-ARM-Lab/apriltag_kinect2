@@ -161,8 +161,8 @@ void DrawMarkerID(const TagDetection& detection, const cv::Scalar text_color, cv
     {
         center += cv::Point2f(detection.p[i].x, detection.p[i].y);
     }
-    center.x = center.x / 4.0;
-    center.y = center.y / 4.0;
+    center.x = center.x / 4.0f;
+    center.y = center.y / 4.0f;
     std::stringstream s;
     s << "  " << detection.id; // move label away from origin
     const double font_scale = 0.5;
@@ -279,7 +279,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
 //        Eigen::Matrix3d R = pose.block<3,3>(0,0);
 //        Eigen::Quaternion<double> q(R);
 
-        double tag_size = GetTagSize(detections[i].id);
+        double tag_size = GetTagSize(int(detections[i].id));
 
         // Fill in MarkerArray msg
         visualization_msgs::Marker marker_transform;
@@ -293,7 +293,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         stringstream convert;
         convert << "tag" << detections[i].id;
         marker_transform.ns = convert.str().c_str();
-        marker_transform.id = detections[i].id;
+        marker_transform.id = int(detections[i].id);
         if(display_type_ == "ARROW"){
             marker_transform.type = visualization_msgs::Marker::ARROW;
             marker_transform.scale.x = tag_size; // arrow length
@@ -310,7 +310,7 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         improvement_obj.localize(detections[i], marker_transform.pose);
 
         if(broadcast_tf_){
-            if(detections[i].id == tf_marker_id_){
+            if(int(detections[i].id) == tf_marker_id_){
                 broadcast_pose(marker_transform.pose);
             }
         }
@@ -333,8 +333,8 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
         // Fill in AprilTag detection.
         apriltag_kinect2::AprilKinectDetection aprilkinect_det;
         aprilkinect_det.header = marker_transform.header;
-        aprilkinect_det.id = marker_transform.id;
-        aprilkinect_det.tag_size = tag_size;
+        aprilkinect_det.id = int(marker_transform.id);
+        aprilkinect_det.tag_size = float(tag_size);
         aprilkinect_det.hammingDistance = det.hammingDistance;
         aprilkinect_det.pose = marker_transform.pose;
 //        const TagDetection &det = detections[i];

@@ -128,6 +128,8 @@ public:
         out_pose.orientation.y = q.y();
         out_pose.orientation.z = q.z();
         out_pose.orientation.w = q.w();
+
+        return 0;
     }
 
     int localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
@@ -174,13 +176,13 @@ public:
 private:
     void gen_tag_samples(){
         m_tag_space_samples = at::Mat::zeros(3, int(m_num_samples*m_num_samples));
-        at::real step = 2.0/ (m_num_samples - 1);
+        float step = 2.0f/ float(m_num_samples - 1);
         for(size_t y=0; y < m_num_samples; y++){
             for(size_t x=0; x < m_num_samples; x++){
                 size_t idx = y*m_num_samples + x;
-                m_tag_space_samples[0][idx] = at::real(x) * step - 1.0;
-                m_tag_space_samples[1][idx] = at::real(y) * step - 1.0;
-                m_tag_space_samples[2][idx] = 1.0;
+                m_tag_space_samples[0][idx] = at::real(x) * step - 1.0f;
+                m_tag_space_samples[1][idx] = at::real(y) * step - 1.0f;
+                m_tag_space_samples[2][idx] = 1.0f;
             }
         }
     }
@@ -211,7 +213,7 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr extract_corners(TagDetection& detection){
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         for(size_t i = 0; i < 4; i++){
-            out_cloud->points.push_back((*m_cloud)(detection.p[i].x, detection.p[i].y));
+            out_cloud->points.push_back((*m_cloud)(size_t(detection.p[i].x), size_t(detection.p[i].y)));
         }
         return out_cloud;
     }
@@ -233,9 +235,9 @@ private:
 
         geometry_msgs::Point center;
         const size_t n = points.size();
-        center.x = sum.x/n;
-        center.y = sum.y/n;
-        center.z = sum.z/n;
+        center.x = sum.x/double(n);
+        center.y = sum.y/double(n);
+        center.z = sum.z/double(n);
         return center;
     }
 
@@ -272,8 +274,8 @@ private:
 
         const Eigen::Vector3d q1 = project(corners.points[0], a, b, c, d);
         const Eigen::Vector3d q2 = project(corners.points[1], a, b, c, d);
-        const Eigen::Vector3d q3 = project(corners.points[0], a, b, c, d);
-        const Eigen::Vector3d q4 = project(corners.points[3], a, b, c, d);
+        //const Eigen::Vector3d q3 = project(corners.points[0], a, b, c, d);
+        //const Eigen::Vector3d q4 = project(corners.points[3], a, b, c, d);
 
         const Eigen::Vector3d v = (q2-q1).normalized();
         const Eigen::Vector3d n(a, b, c);
