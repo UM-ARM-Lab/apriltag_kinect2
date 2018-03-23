@@ -11,10 +11,11 @@ ar_track https://github.com/ros-perception/ar_track_alvar
 apriltags
 =========
 
-ROS wrapper for the Swatbotics C++ port of the AprilTag visual
-fiducial detector.  
+ROS wrapper for the Swatbotics C++ port of the AprilTag visual fiducial detector.  
 The Swatbotics port uses OpenCV and CGAL for improved performance.  
-http://github.com/swatbotics/apriltags-cpp
+http://github.com/swatbotics/apriltags-cpp  
+We are using a ROS Kinetic + Ubuntu 16.04 enabled version of this library.  
+https://github.com/mit212/apriltags-cpp
 
 The AprilTag system was originally developed by the April laboratory at the University of Michigan.
 http://april.eecs.umich.edu/wiki/index.php/AprilTags  
