@@ -130,10 +130,18 @@ public:
         out_pose.orientation.w = q.w();
     }
 
-    void localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
+    int localize(TagDetection& detection, geometry_msgs::Pose& out_pose){
         // sample(segment) a tag corresponding to this detection.
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr tag_sample_cloud = sample_cloud(detection);
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr corners_3D = extract_corners(detection);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr tag_sample_cloud;
+        int result = sample_cloud(detection, tag_sample_cloud);
+        if(result != 0){
+            return result;
+        }
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr corners_3D;
+        result = extract_corners(detection, corners_3D);
+        if(result != 0){
+            return result;
+        }
 
         //fit plane on sampled cloud
         pcl::PointIndices::Ptr inlier_idxs=boost::make_shared<pcl::PointIndices>();
@@ -168,6 +176,7 @@ public:
         out_pose.orientation.y = q.y();
         out_pose.orientation.z = q.z();
         out_pose.orientation.w = q.w();
+        return 0;
     }
 
 private:
@@ -184,13 +193,14 @@ private:
         }
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sample_cloud(TagDetection& detection){
+    int sample_cloud(TagDetection& detection, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& tag_sample_cloud){
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
 
         // calcuate points in image coordinate.
         at::Mat img_idx_mat = detection.homography * m_tag_space_samples;
         size_t x = 0; // col id in image(0,0) at center of image(according to pcl_conversions.h)
         size_t y = 0; // row id in image
+        size_t count = 0;
         for(size_t i = 0; i < m_num_samples * m_num_samples; i++){
             x = size_t(img_idx_mat[0][i]/img_idx_mat[2][i] + detection.hxy.x);
             y = size_t(img_idx_mat[1][i]/img_idx_mat[2][i] + detection.hxy.y);
@@ -198,22 +208,90 @@ private:
             const pcl::PointXYZRGB& pt = (*m_cloud)(x, y);
 
             //check if pt is NaN
-            if (std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z)){
+            if (pt_is_nan(pt)){
                 //ROS_INFO("    Skipping (%.4f, %.4f, %.4f)", pt.x, pt.y, pt.z);
             }else{
+                count++;
                 out_cloud->points.push_back(pt);
             }
         }
-        return out_cloud;
+        if(count < m_num_samples * m_num_samples / 2){
+            //more than half is Nan
+            return -1;
+        }
+
+        tag_sample_cloud = out_cloud;
+        return 0;
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr extract_corners(TagDetection& detection){
+    int extract_corners(TagDetection& detection, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& corners_3D){
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+        pcl::PointXYZRGB temp_pt;
+        int result;
+        size_t window_size = 5;
         for(size_t i = 0; i < 4; i++){
-            out_cloud->points.push_back((*m_cloud)(size_t(detection.p[i].x), size_t(detection.p[i].y)));
+            result = find_non_nan(size_t(detection.p[i].x), size_t(detection.p[i].y), window_size, temp_pt);
+            if(result != 0){
+                return result;
+            }
+
+            out_cloud->points.push_back(temp_pt);
         }
-        return out_cloud;
+
+        corners_3D = out_cloud;
+        return 0;
     }
+
+    bool pt_is_nan(pcl::PointXYZRGB pt){
+        return std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z);
+    }
+
+    int find_non_nan(size_t x, size_t y, size_t window_size, pcl::PointXYZRGB& pt){
+        pt = (*m_cloud)(x, y);
+        if(! pt_is_nan(pt)){
+            //original point is not Nan
+            return 0;
+        }
+
+        //find average in windows_size by window_size reigon
+
+        size_t half_dim = window_size/2;
+        if(x < half_dim || x + half_dim + 1 >= (m_cloud->width) || y < half_dim || y + half_dim + 1 >= (m_cloud->height)){
+            //window is invalid
+            return -1;
+        }
+
+        pcl::PointXYZRGB temp_pt;
+        float avg_x = 0.0f;
+        float avg_y = 0.0f;
+        float avg_z = 0.0f;
+        size_t count = 0;
+        for(size_t temp_y = y - half_dim; temp_y < y + half_dim; temp_y++){
+            for(size_t temp_x = x - half_dim; temp_x < x + half_dim; temp_x++){
+                temp_pt = (*m_cloud)(temp_x, temp_y);
+                if(! pt_is_nan(temp_pt)){
+                    avg_x += temp_pt.x;
+                    avg_y += temp_pt.y;
+                    avg_z += temp_pt.z;
+                    count ++;
+                }
+            }
+        }
+
+        if(count == 0){
+            //all neighbors are Nan
+            return -1;
+        }
+
+        float num = (float) count;
+        pt.x = avg_x / num;
+        pt.y = avg_y / num;
+        pt.z = avg_z / num;
+
+        return 0;
+    }
+
+
 
     geometry_msgs::Point centroid (const pcl::PointCloud<pcl::PointXYZRGB>& points)
     {

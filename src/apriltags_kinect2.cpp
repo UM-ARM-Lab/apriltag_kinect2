@@ -309,7 +309,13 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
             marker.scale.z = marker_thickness_;
         }
         marker.action = visualization_msgs::Marker::ADD;
-        improvement_obj.localize(detections[i], marker.pose);
+
+        int result = improvement_obj.localize(detections[i], marker.pose);
+        if(result != 0){
+            //failed to localize
+            continue;
+        }
+
 
         if(broadcast_tf_)
         {

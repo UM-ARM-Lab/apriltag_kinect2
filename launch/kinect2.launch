@@ -4,7 +4,7 @@
         to connect to an OpenNI device (e.g. Kinect).
     -->
 
-    <arg name="kinect_base_name"    default="/kinect2"/>
+    <arg name="kinect_base_name"    default="/kinect2_victor_head"/>
     <arg name="kinect_data_stream"  default="hd"/>
 
     <arg name="cam_image_topic"     value="$(arg kinect_base_name)/$(arg kinect_data_stream)/points"/>
@@ -20,7 +20,7 @@
          <param name="~display_marker_edges" value="true"/>
       
          <param name="~broadcast_tf" value="false"/>
-         <param name="~tf_marker_id" value="1"/>
+         <param name="~tf_marker_id" value="0"/>
       
          <param name="~display_type" value="CUBE"/>
          <param name="~marker_thickness" value="0.02"/>
