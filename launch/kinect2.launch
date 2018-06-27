@@ -10,7 +10,7 @@
     <arg name="cam_image_topic"     value="$(arg kinect_base_name)/$(arg kinect_data_stream)/points"/>
     <arg name="cam_info_topic"      value="$(arg kinect_base_name)/$(arg kinect_data_stream)/camera_info"/>
 
-    <node pkg="apriltag_kinect2" type="apriltag_kinect2" name="apriltag_kinect2" output="screen">
+    <node pkg="apriltag_kinect2" type="apriltag_kinect2" name="$(anon apriltag_kinect2)" output="screen">
          <param name="~default_tag_size" value="0.035"/>
       
          <param name="~viewer" value="false"/>
