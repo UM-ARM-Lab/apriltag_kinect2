@@ -395,6 +395,8 @@ void getPointCloudCallback (const sensor_msgs::PointCloud2ConstPtr &pc_msg)
 
 void ConnectCallback(const ros::SingleSubscriberPublisher& info)
 {
+    (void)info;
+
     // Check for subscribers.
     uint32_t subscribers = marker_publisher_.getNumSubscribers()
                            + apriltag_publisher_.getNumSubscribers();
@@ -416,6 +418,8 @@ void DisconnectHandler()
 
 void DisconnectCallback(const ros::SingleSubscriberPublisher& info)
 {
+    (void)info;
+
     // Check for subscribers.
     uint32_t subscribers = marker_publisher_.getNumSubscribers()
                            + apriltag_publisher_.getNumSubscribers();
